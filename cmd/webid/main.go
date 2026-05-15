@@ -37,6 +37,7 @@ import (
 
 	"github.com/webinstall/webi-installers/internal/storage"
 	"github.com/webinstall/webi-installers/internal/storage/fsstore"
+	"github.com/webinstall/webi-installers/internal/storage/pgstore"
 	"github.com/webinstall/webi-installers/internal/uadetect"
 )
 
@@ -60,6 +61,7 @@ func printVersion(w io.Writer) {
 func main() {
 	addr := flag.String("addr", ":3001", "listen address")
 	cacheDir := flag.String("legacy", "~/.cache/webi/legacy", "legacy cache directory")
+	pgDSN := flag.String("pg", "", "PostgreSQL DSN (enables pgstore; mutually exclusive with -legacy)")
 	installersDir := flag.String("installers", ".", "installers repo root (for install.sh/ps1)")
 
 	if len(os.Args) > 1 {
@@ -80,11 +82,20 @@ func main() {
 
 	cachePath := expandHome(*cacheDir)
 
-	fss, err := fsstore.New(cachePath)
-	if err != nil {
-		log.Fatalf("fsstore: %v", err)
+	var store storage.Store
+	if *pgDSN != "" {
+		pg, err := pgstore.New(context.Background(), *pgDSN)
+		if err != nil {
+			log.Fatalf("pgstore: %v", err)
+		}
+		store = pg
+	} else {
+		fss, err := fsstore.New(cachePath)
+		if err != nil {
+			log.Fatalf("fsstore: %v", err)
+		}
+		store = fss
 	}
-	var store storage.Store = fss
 
 	srv := &server{
 		store:         store,
