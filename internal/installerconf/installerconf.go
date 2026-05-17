@@ -96,6 +96,16 @@ type Conf struct {
 	// kubectx/kubens) to select only the relevant assets.
 	AssetFilter string
 
+	// ArchMap translates non-standard arch strings in asset filenames to
+	// canonical webi arch names. Format: "upstream:canonical" pairs,
+	// whitespace-delimited. Example: "x64:x86_64 ia32:x86 arm:armv7"
+	ArchMap map[string]string
+
+	// OSMap translates non-standard OS strings in asset filenames to
+	// canonical webi OS names. Format: "upstream:canonical" pairs,
+	// whitespace-delimited. Example: "win32:windows"
+	OSMap map[string]string
+
 	// Variants documents known build variant names for this package.
 	// Whitespace-delimited. This is a human-readable cue — actual
 	// variant detection logic lives in Go code per-package.
@@ -243,6 +253,14 @@ func Read(path string) (*Conf, error) {
 	}
 
 	c.AssetFilter = raw["asset_filter"]
+
+	if v := raw["arch_map"]; v != "" {
+		c.ArchMap = parseKVMap(v)
+	}
+	if v := raw["os_map"]; v != "" {
+		c.OSMap = parseKVMap(v)
+	}
+
 	c.OS = raw["os"]
 	c.AliasOf = raw["alias_of"]
 
@@ -269,6 +287,8 @@ func Read(path string) (*Conf, error) {
 		"exclude":            true,
 		"asset_exclude":      true,
 		"asset_filter":       true,
+		"arch_map":           true,
+		"os_map":             true,
 		"os":                 true,
 		"variants":           true,
 		"alias_of":           true,
@@ -283,4 +303,16 @@ func Read(path string) (*Conf, error) {
 	}
 
 	return c, nil
+}
+
+// parseKVMap parses whitespace-delimited "key:value" pairs into a map.
+func parseKVMap(s string) map[string]string {
+	m := make(map[string]string)
+	for _, pair := range strings.Fields(s) {
+		k, v, ok := strings.Cut(pair, ":")
+		if ok {
+			m[k] = v
+		}
+	}
+	return m
 }

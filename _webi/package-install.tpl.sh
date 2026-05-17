@@ -226,6 +226,9 @@ __bootstrap_webi() {
         elif test "$WEBI_EXT" = "git"; then
             echo "    Moving $(t_path "${my_dl_rel}")"
             mv "${WEBI_PKG_PATH}/$WEBI_PKG_FILE" .
+        elif test "$WEBI_EXT" = "gz"; then
+            echo "    Inflating $(t_path "${my_dl_rel}")"
+            gunzip -c "${WEBI_PKG_PATH}/$WEBI_PKG_FILE" > "$(basename "$WEBI_PKG_FILE" .gz)"
         elif test "$WEBI_EXT" = "xz"; then
             echo "    Inflating $(t_path "${my_dl_rel}")"
             unxz -c "${WEBI_PKG_PATH}/$WEBI_PKG_FILE" > "$(basename "$WEBI_PKG_FILE")"

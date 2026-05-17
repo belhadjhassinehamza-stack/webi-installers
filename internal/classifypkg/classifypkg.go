@@ -166,8 +166,6 @@ func classifySource(pkg string, conf *installerconf.Conf, d *rawcache.Dir) ([]st
 		return classifyMariaDBDist(d)
 	case "zigdist":
 		return classifyZigDist(d)
-	case "ffmpegdist":
-		return classifyFFmpegDist(d)
 	default:
 		return nil, nil
 	}
@@ -428,6 +426,16 @@ func classifyGitHub(pkg string, conf *installerconf.Conf, d *rawcache.Dir) ([]st
 
 			r := classify.Filename(a.Name)
 
+			// Apply conf-level OS/arch overrides for non-standard naming.
+			osStr := string(r.OS)
+			if mapped, ok := conf.OSMap[osStr]; ok {
+				osStr = mapped
+			}
+			archStr := string(r.Arch)
+			if mapped, ok := conf.ArchMap[archStr]; ok {
+				archStr = mapped
+			}
+
 			// Normalize .tgz → .tar.gz in the display filename.
 			// The download URL still points to the real file.
 			name := a.Name
@@ -441,7 +449,7 @@ func classifyGitHub(pkg string, conf *installerconf.Conf, d *rawcache.Dir) ([]st
 				libc = buildmeta.LibcNone
 			}
 			// Windows gnu (MinGW) is self-contained — no runtime deps.
-			if r.OS == buildmeta.OSWindows && libc == buildmeta.LibcGNU {
+			if buildmeta.OS(osStr) == buildmeta.OSWindows && libc == buildmeta.LibcGNU {
 				libc = buildmeta.LibcNone
 			}
 
@@ -449,8 +457,8 @@ func classifyGitHub(pkg string, conf *installerconf.Conf, d *rawcache.Dir) ([]st
 				Filename: name,
 				Version:  version,
 				Channel:  channel,
-				OS:       string(r.OS),
-				Arch:     string(r.Arch),
+				OS:       osStr,
+				Arch:     archStr,
 				Libc:     string(libc),
 				Format:   string(r.Format),
 				Download: a.BrowserDownloadURL,
@@ -463,86 +471,6 @@ func classifyGitHub(pkg string, conf *installerconf.Conf, d *rawcache.Dir) ([]st
 		// project started uploading binaries. Source-installable packages
 		// should use githubsource or gittag source type instead.
 	}
-	return assets, nil
-}
-
-var ffmpegOSMap = map[string]string{
-	"linux":  "linux",
-	"darwin": "darwin",
-	"win32":  "windows",
-}
-
-var ffmpegArchMap = map[string]string{
-	"x64":   "x86_64",
-	"ia32":  "x86",
-	"arm64": "aarch64",
-	"arm":   "armv7",
-}
-
-// classifyFFmpegDist handles eugeneware/ffmpeg-static releases.
-// Upstream uses non-standard names (x64, ia32, win32, arm) and ships both
-// bare binaries and .gz-compressed copies. Only bare binaries are kept —
-// the install template has no handler for single-file .gz extraction.
-func classifyFFmpegDist(d *rawcache.Dir) ([]storage.Asset, error) {
-	releases, err := ReadAllRaw(d)
-	if err != nil {
-		return nil, err
-	}
-
-	var assets []storage.Asset
-	for _, data := range releases {
-		var rel ghRelease
-		if err := json.Unmarshal(data, &rel); err != nil {
-			continue
-		}
-		if rel.Draft {
-			continue
-		}
-
-		version := strings.TrimPrefix(rel.TagName, "b")
-
-		channel := "stable"
-		if rel.Prerelease {
-			channel = "beta"
-		}
-
-		date := ""
-		if len(rel.PublishedAt) >= 10 {
-			date = rel.PublishedAt[:10]
-		}
-
-		for _, a := range rel.Assets {
-			if strings.Contains(a.Name, ".") {
-				continue
-			}
-			if !strings.HasPrefix(a.Name, "ffmpeg-") {
-				continue
-			}
-
-			parts := strings.SplitN(a.Name, "-", 3)
-			if len(parts) != 3 {
-				continue
-			}
-
-			os, osOK := ffmpegOSMap[parts[1]]
-			arch, archOK := ffmpegArchMap[parts[2]]
-			if !osOK || !archOK {
-				continue
-			}
-
-			assets = append(assets, storage.Asset{
-				Filename: a.Name,
-				Version:  version,
-				Channel:  channel,
-				OS:       os,
-				Arch:     arch,
-				Format:   "",
-				Download: a.BrowserDownloadURL,
-				Date:     date,
-			})
-		}
-	}
-
 	return assets, nil
 }
 
