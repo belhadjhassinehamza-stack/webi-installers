@@ -149,7 +149,7 @@ func main() {
 
 	if cfg.envFile != "" {
 		if err := godotenv.Load(cfg.envFile); err != nil {
-			log.Fatalf("envfile: %v", err)
+			log.Fatalf("env-file: %v", err)
 		}
 	}
 	if cfg.token == "" {
@@ -295,7 +295,7 @@ func main() {
 }
 
 func registerFlags(fs *flag.FlagSet, cfg *MainConfig) {
-	fs.StringVar(&cfg.envFile, "envfile", "", "path to .env file to load before running")
+	fs.StringVar(&cfg.envFile, "env-file", "", "path to .env file to load before running")
 	fs.StringVar(&cfg.confDir, "conf", ".", "root directory containing {pkg}/releases.conf files")
 	fs.StringVar(&cfg.cacheDir, "legacy", "~/.cache/webi/legacy", "legacy cache directory (fsstore root)")
 	fs.StringVar(&cfg.rawDir, "raw", "~/.cache/webi/raw", "raw cache directory for upstream responses")
